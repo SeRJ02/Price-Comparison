@@ -87,9 +87,19 @@ def main():
     """Load commission map, build bot, start polling."""
     global commission_map
 
+    # Load .env file if present
+    env_path = os.path.join(os.path.dirname(__file__) or ".", ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), val.strip())
+
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token:
-        print("❌ TELEGRAM_BOT_TOKEN not set. Use the token setup cell first.")
+        print("❌ TELEGRAM_BOT_TOKEN not set. Use the token setup cell or create a .env file.")
         return
 
     # Load commissions
