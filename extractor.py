@@ -141,46 +141,63 @@ def extract_from_flipkart(soup, url) -> dict:
     """Scrape a Flipkart product page."""
     data = {"warnings": []}
 
-    # Title — try multiple selector patterns
-    try:
-        for sel in ["h1.yhB1nd", "h1._6EBuvT", "h1", "._35KyD6", ".B_NuCI", "[class*='title']"]:
-            el = soup.select_one(sel)
-            if el and el.get_text(strip=True):
-                data["name"] = el.get_text(strip=True)
+    # Title — prefer og:title (untruncated), fall back to h1
+    name = ""
+    og = soup.select_one('meta[property="og:title"]')
+    if og and og.get("content"):
+        name = og["content"].strip()
+    if not name:
+        h1 = soup.select_one("h1")
+        if h1:
+            name = h1.get_text(strip=True)
+    # Strip trailing UI noise
+    name = re.sub(r"\s*(\.{2,}\s*more|see\s+more|show\s+more)\s*$", "", name, flags=re.IGNORECASE).strip()
+    data["name"] = name
+
+    # Price — find any element with font="default-fk-font-m" containing ₹, else first ₹ in body
+    price_text = ""
+    for el in soup.select('[font="default-fk-font-m"]'):
+        t = el.get_text(strip=True)
+        if t.startswith("\u20b9"):
+            price_text = t
+            break
+    if not price_text:
+        for el in soup.find_all(string=True):
+            t = el.strip()
+            if t.startswith("\u20b9") and any(ch.isdigit() for ch in t):
+                price_text = t
                 break
-    except Exception:
-        data["warnings"].append("title selector failed")
+    data["price"] = clean_price(price_text)
 
-    # Price — try multiple selector patterns
+    # Brand — first word of URL slug (e.g. cetaphil-... -> Cetaphil)
+    brand = ""
     try:
-        for sel in ["._30jeq3", ".Nx9bqj", ".CEmiEU", "[class*='price']"]:
-            el = soup.select_one(sel)
-            if el and el.get_text(strip=True):
-                data["price"] = clean_price(el.get_text(strip=True))
-                if data["price"] > 0:
-                    break
+        path = url.split("flipkart.com/", 1)[-1]
+        slug = path.split("/", 1)[0]
+        first = slug.split("-")[0]
+        if first.isalpha() and 2 <= len(first) <= 30:
+            brand = first.capitalize()
     except Exception:
-        data["warnings"].append("price selector failed")
+        pass
+    if not brand and data.get("name"):
+        brand = data["name"].split()[0]
+    data["brand"] = brand
 
-    # Brand — first word of title
+    # Category — from breadcrumb (links near top of page)
     try:
-        if data.get("name"):
-            data["brand"] = data["name"].split()[0]
-    except Exception:
-        data["warnings"].append("brand selector failed")
-
-    # Category — from breadcrumb or URL
-    try:
-        parts = [p for p in url.split("/") if p and p not in ("https:", "www.flipkart.com")]
-        if parts:
-            data["category"] = parts[0].replace("-", " ").title()
+        crumbs = soup.select('a[href*="/store/"], nav a, ._3GIHBu a')
+        texts = [a.get_text(strip=True) for a in crumbs if a.get_text(strip=True)]
+        if len(texts) >= 2:
+            data["category"] = texts[-2]
+        elif texts:
+            data["category"] = texts[-1]
     except Exception:
         data["warnings"].append("category selector failed")
 
-    # Quantity
     data["quantity"] = extract_quantity_from_title(data.get("name", ""))
-
     return data
+
+
 
 
 def extract_from_myntra(soup, url) -> dict:
