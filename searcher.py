@@ -11,11 +11,20 @@ from bs4 import BeautifulSoup
 from config import HEADERS, TOP_N_RESULTS, REQUEST_DELAY
 
 
+SCRAPER_PARAMS = {
+    "flipkart": "&country_code=in&render=true",
+}
+
+
 def fetch(url, platform):
     scraper_key = os.environ.get("SCRAPER_API_KEY", "")
-    fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}" if scraper_key else url
+    if scraper_key:
+        extra = SCRAPER_PARAMS.get(platform, "")
+        fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}{extra}"
+    else:
+        fetch_url = url
     headers = HEADERS.get(platform, {})
-    resp = requests.get(fetch_url, headers=headers, timeout=60)
+    resp = requests.get(fetch_url, headers=headers, timeout=90)
     resp.raise_for_status()
     return resp.text
 
