@@ -66,23 +66,26 @@ def search_flipkart(query):
         html = fetch(f"https://www.flipkart.com/search?q={quote_plus(query)}", "flipkart")
         soup = BeautifulSoup(html, "html.parser")
         results = []
-        for card in soup.select("div._1AtVbE, div._1xHGtK, div.slAVV4, div.tUxRFH, div._75nlfW")[:TOP_N_RESULTS * 3]:
-            title_el = card.select_one("a.IRpwTa, a.s1Q9rs, div._4rR01T, a._2rpwqI, div.KzDlHZ, a.WKTcLC")
-            price_el = card.select_one("div._30jeq3, div._25b18c, div.Nx9bqj")
-            link_el = card.select_one("a.IRpwTa, a.s1Q9rs, a._2rpwqI, a._1fQZEK, a.CGtC98, a.WKTcLC")
+        for card in soup.select("div[data-id]"):
+            title_el = card.select_one("a[title]")
             if not title_el:
                 continue
-            title = title_el.get_text(strip=True)
+            title = title_el.get("title", "").strip()
             if len(title) < 5:
                 continue
-            price = clean_int(price_el.get_text(strip=True) if price_el else "")
-            href = link_el.get("href", "") if link_el else ""
+            href = title_el.get("href", "")
             prod_url = href if href.startswith("http") else f"https://www.flipkart.com{href}"
+            price = 0
+            for el in card.find_all(string=True):
+                txt = el.strip()
+                if txt.startswith("\u20b9"):
+                    price = clean_int(txt)
+                    break
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
                 break
         if not results:
-            print(f"[flipkart-debug] html_len={len(html)} preview={html[:1500]!r}")
+            print(f"[flipkart-debug] html_len={len(html)} head={html[:1500]!r}")
         return results
     except Exception as e:
         print(f"[search_flipkart] error: {e}")
