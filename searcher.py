@@ -62,8 +62,22 @@ def search_amazon(query):
                     title = title_link.get_text(strip=True)
             if len(title) < 5:
                 continue
+            title = re.sub(r"^Sponsored Ad\s*-\s*", "", title, flags=re.IGNORECASE).strip()
             link_el = card.select_one("a.a-link-normal[href*='/dp/']") or card.select_one("h2 a")
             href = link_el.get("href", "") if link_el else ""
+            brand = ""
+            brand_el = card.select_one("h5 span, span.a-size-base-plus.a-color-base")
+            if brand_el:
+                cand = brand_el.get_text(strip=True)
+                if cand and len(cand) < 40 and cand.lower() not in title.lower():
+                    brand = cand
+            if not brand and href:
+                slug = href.lstrip("/").split("/", 1)[0]
+                first = slug.split("-")[0] if slug else ""
+                if first.isalpha() and 2 <= len(first) <= 25 and first.lower() not in title.lower():
+                    brand = first
+            if brand:
+                title = f"{brand} {title}"
             prod_url = href if href.startswith("http") else f"https://www.amazon.in{href}"
             price_el = card.select_one("span.a-offscreen")
             price = clean_int(price_el.get_text(strip=True) if price_el else "")
