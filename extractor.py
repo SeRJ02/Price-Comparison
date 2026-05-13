@@ -50,7 +50,7 @@ def extract_product(url: str) -> dict:
         if len(resp.text) < 5000:
             raise Exception(f"Blocked or empty response from {platform} (got {len(resp.text)} bytes)")
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, "html.parser")
 
         extractors = {
             "amazon": extract_from_amazon,
