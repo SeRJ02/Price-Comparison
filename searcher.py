@@ -24,9 +24,17 @@ def fetch(url, platform):
     else:
         fetch_url = url
     headers = HEADERS.get(platform, {})
-    resp = requests.get(fetch_url, headers=headers, timeout=90)
-    resp.raise_for_status()
-    return resp.text
+    last_err = None
+    for attempt in range(3):
+        try:
+            resp = requests.get(fetch_url, headers=headers, timeout=90)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e:
+            last_err = e
+            print(f"[fetch-retry] {platform} attempt {attempt+1}/3 failed: {e}")
+            time.sleep(2 * (attempt + 1))
+    raise last_err
 
 
 def clean_int(text):
@@ -66,26 +74,41 @@ def search_flipkart(query):
         html = fetch(f"https://www.flipkart.com/search?q={quote_plus(query)}", "flipkart")
         soup = BeautifulSoup(html, "html.parser")
         results = []
-        for card in soup.select("div[data-id]"):
-            title_el = card.select_one("a[title]")
-            if not title_el:
-                continue
-            title = title_el.get("title", "").strip()
+        seen_urls = set()
+        for a in soup.select("a[title][href]"):
+            title = a.get("title", "").strip()
+            href = a.get("href", "")
             if len(title) < 5:
                 continue
-            href = title_el.get("href", "")
-            prod_url = href if href.startswith("http") else f"https://www.flipkart.com{href}"
+            if not (href.startswith("/") and ("/p/" in href or "pid=" in href or "-" in href.split("/")[-1])):
+                continue
+            if href in seen_urls:
+                continue
+            seen_urls.add(href)
+            prod_url = f"https://www.flipkart.com{href}"
             price = 0
-            for el in card.find_all(string=True):
-                txt = el.strip()
-                if txt.startswith("\u20b9"):
-                    price = clean_int(txt)
+            parent = a
+            for _ in range(5):
+                parent = parent.parent if parent else None
+                if not parent:
+                    break
+                for el in parent.find_all(string=True):
+                    txt = el.strip()
+                    if txt.startswith("\u20b9"):
+                        price = clean_int(txt)
+                        break
+                if price:
                     break
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
                 break
         if not results:
-            print(f"[flipkart-debug] html_len={len(html)} head={html[:1500]!r}")
+            idx = html.find("\u20b9")
+            if idx > 0:
+                start = max(0, idx - 500)
+                print(f"[flipkart-debug] rupee_at={idx} chunk={html[start:idx+3000]!r}")
+            else:
+                print(f"[flipkart-debug] no_rupee html_len={len(html)} head={html[:2000]!r}")
         return results
     except Exception as e:
         print(f"[search_flipkart] error: {e}")
