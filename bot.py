@@ -66,6 +66,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product = extract_product(url)
 
         if not product.get("name"):
+            warnings = product.get("warnings", [])
+            print(f"Extraction failed: {warnings}")
             await update.message.reply_text(
                 "❌ Couldn't extract product details from that link. Please try a different one."
             )
