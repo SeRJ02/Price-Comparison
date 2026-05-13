@@ -44,7 +44,12 @@ def extract_product(url: str) -> dict:
         session = requests.Session()
         headers = {**FULL_HEADERS, **HEADERS.get(platform, {})}
         session.headers.update(headers)
-        resp = session.get(url, timeout=15)
+        scraper_key = os.environ.get("SCRAPER_API_KEY", "")
+        if scraper_key:
+            fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}"
+        else:
+            fetch_url = url
+        resp = session.get(fetch_url, timeout=60)
         resp.raise_for_status()
 
         if len(resp.text) < 5000:
