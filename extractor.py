@@ -141,37 +141,39 @@ def extract_from_flipkart(soup, url) -> dict:
     """Scrape a Flipkart product page."""
     data = {"warnings": []}
 
-    # Brand — breadcrumb second item, or first word of title
+    # Title — try multiple selector patterns
     try:
-        breadcrumbs = soup.select(FLIPKART_SELECTORS["breadcrumb"])
-        if len(breadcrumbs) >= 2:
-            data["brand"] = breadcrumbs[1].get_text(strip=True)
-        else:
-            title_el = soup.select_one(FLIPKART_SELECTORS["title"])
-            if title_el:
-                data["brand"] = title_el.get_text(strip=True).split()[0]
-    except Exception:
-        data["warnings"].append("brand selector failed")
-
-    # Title
-    try:
-        title_el = soup.select_one(FLIPKART_SELECTORS["title"])
-        data["name"] = title_el.get_text(strip=True) if title_el else ""
+        for sel in ["h1.yhB1nd", "h1._6EBuvT", "h1", "._35KyD6", ".B_NuCI", "[class*='title']"]:
+            el = soup.select_one(sel)
+            if el and el.get_text(strip=True):
+                data["name"] = el.get_text(strip=True)
+                break
     except Exception:
         data["warnings"].append("title selector failed")
 
-    # Price
+    # Price — try multiple selector patterns
     try:
-        price_el = soup.select_one(FLIPKART_SELECTORS["price"])
-        data["price"] = clean_price(price_el.get_text(strip=True)) if price_el else 0
+        for sel in ["._30jeq3", ".Nx9bqj", ".CEmiEU", "[class*='price']"]:
+            el = soup.select_one(sel)
+            if el and el.get_text(strip=True):
+                data["price"] = clean_price(el.get_text(strip=True))
+                if data["price"] > 0:
+                    break
     except Exception:
         data["warnings"].append("price selector failed")
 
-    # Category — breadcrumb second-to-last
+    # Brand — first word of title
     try:
-        breadcrumbs = soup.select(FLIPKART_SELECTORS["breadcrumb"])
-        if len(breadcrumbs) >= 2:
-            data["category"] = breadcrumbs[-2].get_text(strip=True)
+        if data.get("name"):
+            data["brand"] = data["name"].split()[0]
+    except Exception:
+        data["warnings"].append("brand selector failed")
+
+    # Category — from breadcrumb or URL
+    try:
+        parts = [p for p in url.split("/") if p and p not in ("https:", "www.flipkart.com")]
+        if parts:
+            data["category"] = parts[0].replace("-", " ").title()
     except Exception:
         data["warnings"].append("category selector failed")
 
