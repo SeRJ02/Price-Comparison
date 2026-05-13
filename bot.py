@@ -5,6 +5,7 @@ import traceback
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
+from telegram.request import HTTPXRequest
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from utils import detect_platform
@@ -126,7 +127,8 @@ def main():
         print(f"⚠️ Could not load commission sheet: {e}")
         print("   Bot will run without commission data.")
 
-    app = Application.builder().token(token).build()
+    request = HTTPXRequest(connection_pool_size=20, read_timeout=120, write_timeout=120, connect_timeout=30)
+    app = Application.builder().token(token).request(request).build()
 
     # Register handlers
     app.add_handler(CommandHandler("start", start_command))
