@@ -152,5 +152,7 @@ def search_all_platforms(product, skip_platform):
             continue
         results[platform] = func(query)
         print(f"[search] {platform}: found {len(results[platform])} results")
+        for i, r in enumerate(results[platform][:5]):
+            print(f"[search]   {platform}[{i}] title={r.get('title','')!r} price={r.get('price',0)}")
         time.sleep(REQUEST_DELAY)
     return results

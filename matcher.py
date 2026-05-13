@@ -40,6 +40,7 @@ def pick_best_match(source: dict, results: list) -> dict:
 
     for r in results:
         s = score_result(source, r)
+        print(f"[match] score={s} title={r.get('title','')!r}")
         if s > best_score:
             best_score = s
             best = r
