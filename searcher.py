@@ -52,6 +52,7 @@ def search_amazon(query):
 
 
 def search_flipkart(query):
+    html = ""
     try:
         html = fetch(f"https://www.flipkart.com/search?q={quote_plus(query)}", "flipkart")
         soup = BeautifulSoup(html, "html.parser")
@@ -71,6 +72,8 @@ def search_flipkart(query):
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
                 break
+        if not results:
+            print(f"[flipkart-debug] html_len={len(html)} preview={html[:1500]!r}")
         return results
     except Exception as e:
         print(f"[search_flipkart] error: {e}")
