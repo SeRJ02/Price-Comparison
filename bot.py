@@ -66,6 +66,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Step 3 — Extract product from source URL
         product = extract_product(url)
 
+        # Strip trailing UI noise like "...more", "see more", "Show more"
+        if product.get("name"):
+            import re as _re
+            product["name"] = _re.sub(r"\s*(\.{2,}\s*more|see\s+more|show\s+more)\s*$", "", product["name"], flags=_re.IGNORECASE).strip()
+
         if not product.get("name"):
             warnings = product.get("warnings", [])
             print(f"Extraction failed: {warnings}")

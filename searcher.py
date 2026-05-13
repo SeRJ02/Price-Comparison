@@ -49,16 +49,25 @@ def search_amazon(query):
         html = fetch(f"https://www.amazon.in/s?k={quote_plus(query)}", "amazon")
         soup = BeautifulSoup(html, "html.parser")
         results = []
-        for card in soup.select("div[data-component-type='s-search-result'], div.s-result-item")[:TOP_N_RESULTS * 2]:
-            title_el = card.select_one("h2 span, .a-size-medium, .a-size-base-plus")
-            price_el = card.select_one(".a-price-whole, .a-offscreen")
-            link_el = card.select_one("h2 a, a.a-link-normal")
-            if not title_el:
+        seen = set()
+        for card in soup.select("div[data-asin]"):
+            asin = card.get("data-asin", "").strip()
+            if not asin or asin in seen:
                 continue
-            title = title_el.get_text(strip=True)
-            price = clean_int(price_el.get_text(strip=True) if price_el else "")
+            h2 = card.select_one("h2[aria-label]")
+            title = h2.get("aria-label", "").strip() if h2 else ""
+            if not title:
+                title_link = card.select_one("h2 a span, h2 span")
+                if title_link:
+                    title = title_link.get_text(strip=True)
+            if len(title) < 5:
+                continue
+            link_el = card.select_one("a.a-link-normal[href*='/dp/']") or card.select_one("h2 a")
             href = link_el.get("href", "") if link_el else ""
             prod_url = href if href.startswith("http") else f"https://www.amazon.in{href}"
+            price_el = card.select_one("span.a-offscreen")
+            price = clean_int(price_el.get_text(strip=True) if price_el else "")
+            seen.add(asin)
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
                 break
