@@ -7,6 +7,20 @@ from bs4 import BeautifulSoup
 from config import HEADERS, AMAZON_SELECTORS, FLIPKART_SELECTORS, MYNTRA_SELECTORS, HAMARAMALL_SELECTORS
 from utils import detect_platform, extract_quantity_from_title, extract_keywords, clean_price
 
+FULL_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-IN,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
+
 
 def extract_product(url: str) -> dict:
     """Main entry: fetch URL, detect platform, extract structured product data."""
@@ -27,9 +41,15 @@ def extract_product(url: str) -> dict:
         platform = detect_platform(url)
         product["platform"] = platform
 
-        headers = HEADERS.get(platform, {})
-        resp = requests.get(url, headers=headers, timeout=15)
+        session = requests.Session()
+        headers = {**FULL_HEADERS, **HEADERS.get(platform, {})}
+        session.headers.update(headers)
+        resp = session.get(url, timeout=15)
         resp.raise_for_status()
+
+        if len(resp.text) < 5000:
+            raise Exception(f"Blocked or empty response from {platform} (got {len(resp.text)} bytes)")
+
         soup = BeautifulSoup(resp.text, "lxml")
 
         extractors = {
