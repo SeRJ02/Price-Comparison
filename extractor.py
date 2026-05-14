@@ -57,8 +57,19 @@ def extract_product(url: str) -> dict:
             fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}{extra}"
         else:
             fetch_url = url
-        resp = session.get(fetch_url, timeout=60)
-        resp.raise_for_status()
+        last_err = None
+        resp = None
+        for attempt in range(3):
+            try:
+                resp = session.get(fetch_url, timeout=60)
+                resp.raise_for_status()
+                break
+            except Exception as e:
+                last_err = e
+                print(f"[extract-retry] {platform} attempt {attempt+1}/3 failed: {e}")
+                time.sleep(2 * (attempt + 1))
+        else:
+            raise last_err
 
         if len(resp.text) < 5000:
             raise Exception(f"Blocked or empty response from {platform} (got {len(resp.text)} bytes)")
