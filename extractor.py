@@ -283,12 +283,21 @@ def extract_from_hamaramall(soup, url) -> dict:
 
 
 def build_search_query(product: dict) -> str:
-    """Combine brand + core name + quantity into a search string (max 60 chars)."""
+    """Combine brand + core name + quantity into a search string (max 60 chars).
+    If product name contains a SKU/model code, prefer brand + SKU for higher relevance."""
+    name = product.get("name", "") or ""
+    sku_candidates = re.findall(r"[A-Z0-9][A-Z0-9\-]{5,}", name.upper())
+    skus = [s for s in sku_candidates
+            if len(s) >= 6 and any(c.isdigit() for c in s) and any(c.isalpha() for c in s)]
+    if skus:
+        brand = product.get("brand", "")
+        return f"{brand} {skus[0]}".strip()[:60]
+
     parts = []
     if product.get("brand"):
         parts.append(product["brand"])
     if product.get("keywords"):
-        parts.extend(product["keywords"][:5])  # Limit to top keywords
+        parts.extend(product["keywords"][:5])
     if product.get("quantity"):
         parts.append(product["quantity"])
     query = " ".join(parts)
