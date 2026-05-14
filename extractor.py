@@ -3,6 +3,7 @@
 import os
 import time
 import requests
+import re
 from bs4 import BeautifulSoup
 
 from config import HEADERS, AMAZON_SELECTORS, FLIPKART_SELECTORS, MYNTRA_SELECTORS, HAMARAMALL_SELECTORS
