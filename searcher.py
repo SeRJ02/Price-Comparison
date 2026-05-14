@@ -25,15 +25,16 @@ def fetch(url, platform):
         fetch_url = url
     headers = HEADERS.get(platform, {})
     last_err = None
-    for attempt in range(3):
+    timeout = 60 if platform == "flipkart" else 30
+    for attempt in range(2):
         try:
-            resp = requests.get(fetch_url, headers=headers, timeout=90)
+            resp = requests.get(fetch_url, headers=headers, timeout=timeout)
             resp.raise_for_status()
             return resp.text
         except Exception as e:
             last_err = e
-            print(f"[fetch-retry] {platform} attempt {attempt+1}/3 failed: {e}")
-            time.sleep(2 * (attempt + 1))
+            print(f"[fetch-retry] {platform} attempt {attempt+1}/2 failed: {e}")
+            time.sleep(2)
     raise last_err
 
 
