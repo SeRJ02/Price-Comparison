@@ -282,8 +282,29 @@ def extract_from_hamaramall(soup, url) -> dict:
     return data
 
 
+def _extract_tech_specs(name: str) -> list:
+    """Pull RAM/storage/CPU tokens from a product name."""
+    if not name:
+        return []
+    specs = []
+    for m in re.findall(r"\b\d+\s?(?:GB|TB)\b", name, flags=re.IGNORECASE):
+        specs.append(m.replace(" ", "").upper())
+    for m in re.findall(r"\bCore\s*(?:Ultra\s*\d|i\d)\b", name, flags=re.IGNORECASE):
+        specs.append(m.strip())
+    for m in re.findall(r"\bRyzen\s*\d\b", name, flags=re.IGNORECASE):
+        specs.append(m.strip())
+    # Dedupe preserving order
+    seen = set()
+    out = []
+    for s in specs:
+        if s.lower() not in seen:
+            seen.add(s.lower())
+            out.append(s)
+    return out[:4]
+
+
 def build_search_query(product: dict) -> str:
-    """Combine brand + core name + quantity into a search string (max 60 chars).
+    """Combine brand + core name + quantity/specs into a search string (max 60 chars).
     If product name contains a SKU/model code, prefer brand + SKU for higher relevance."""
     name = product.get("name", "") or ""
     sku_candidates = re.findall(r"[A-Z0-9][A-Z0-9\-]{5,}", name.upper())
@@ -297,8 +318,10 @@ def build_search_query(product: dict) -> str:
     if product.get("brand"):
         parts.append(product["brand"])
     if product.get("keywords"):
-        parts.extend(product["keywords"][:5])
-    if product.get("quantity"):
+        parts.extend(product["keywords"][:3])
+    specs = _extract_tech_specs(name)
+    parts.extend(specs)
+    if not specs and product.get("quantity"):
         parts.append(product["quantity"])
     query = " ".join(parts)
     return query[:60].strip()

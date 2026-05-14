@@ -27,7 +27,7 @@ HEADERS = {
 
 # Matching score thresholds
 SCORE_EXACT = 65      # Show as ✅ Exact match
-SCORE_SIMILAR = 50    # Show as ⚠️ Similar product
+SCORE_SIMILAR = 45    # Show as ⚠️ Similar product
 # Below 40 = ❌ Not found
 
 # Search result count to evaluate per platform
