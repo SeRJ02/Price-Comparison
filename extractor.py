@@ -62,6 +62,9 @@ def extract_product(url: str) -> dict:
 
         if len(resp.text) < 5000:
             raise Exception(f"Blocked or empty response from {platform} (got {len(resp.text)} bytes)")
+        if platform == "myntra":
+            sample = resp.text[:300] + " ... " + resp.text[-300:]
+            print(f"[extract-debug] myntra html_len={len(resp.text)} sample={sample!r}")
 
         soup = BeautifulSoup(resp.text, "html.parser")
 
