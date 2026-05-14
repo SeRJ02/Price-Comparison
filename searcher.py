@@ -99,29 +99,30 @@ def search_flipkart(query):
         soup = BeautifulSoup(html, "html.parser")
         results = []
         seen_urls = set()
-        for a in soup.select("a[title][href]"):
-            title = a.get("title", "").strip()
-            href = a.get("href", "")
-            if len(title) < 5:
-                continue
-            if not (href.startswith("/") and ("/p/" in href or "pid=" in href or "-" in href.split("/")[-1])):
+        for card in soup.select("div[data-id]"):
+            # Try a[title] first (fashion/grocery layout)
+            a = card.select_one("a[title][href]")
+            title = a.get("title", "").strip() if a else ""
+            href = a.get("href", "") if a else ""
+            # Fallback: any anchor pointing at /p/ (electronics layout)
+            if not title or len(title) < 5:
+                link = card.select_one("a[href*='/p/']")
+                if link:
+                    href = link.get("href", "")
+                    slug_match = re.search(r"/([a-z0-9][a-z0-9-]+)/p/", href)
+                    if slug_match:
+                        title = slug_match.group(1).replace("-", " ").strip()
+            if not title or len(title) < 5:
                 continue
             if href in seen_urls:
                 continue
             seen_urls.add(href)
-            prod_url = f"https://www.flipkart.com{href}"
+            prod_url = f"https://www.flipkart.com{href}" if href.startswith("/") else href
             price = 0
-            parent = a
-            for _ in range(5):
-                parent = parent.parent if parent else None
-                if not parent:
-                    break
-                for el in parent.find_all(string=True):
-                    txt = el.strip()
-                    if txt.startswith("\u20b9"):
-                        price = clean_int(txt)
-                        break
-                if price:
+            for el in card.find_all(string=True):
+                txt = el.strip()
+                if txt.startswith("\u20b9"):
+                    price = clean_int(txt)
                     break
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
