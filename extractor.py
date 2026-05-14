@@ -47,8 +47,14 @@ def extract_product(url: str) -> dict:
         headers = {**FULL_HEADERS, **HEADERS.get(platform, {})}
         session.headers.update(headers)
         scraper_key = os.environ.get("SCRAPER_API_KEY", "")
+        # Render-heavy platforms need JS execution for SSR-empty product pages
+        extractor_params = {
+            "flipkart": "&country_code=in&render=true",
+            "myntra": "&country_code=in&render=true",
+        }
         if scraper_key:
-            fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}"
+            extra = extractor_params.get(platform, "")
+            fetch_url = f"http://api.scraperapi.com?api_key={scraper_key}&url={url}{extra}"
         else:
             fetch_url = url
         resp = session.get(fetch_url, timeout=60)
