@@ -54,6 +54,19 @@ def _quantity_match(source_qty, result_title):
     return normalize_quantity(source_qty) == normalize_quantity(res_qty)
 
 
+_SKU_RE = re.compile(r"[A-Z0-9][A-Z0-9\-]{5,}")
+
+
+def _extract_skus(text):
+    if not text:
+        return set()
+    out = set()
+    for tok in _SKU_RE.findall(text.upper()):
+        if len(tok) >= 6 and any(c.isdigit() for c in tok) and any(c.isalpha() for c in tok):
+            out.add(tok)
+    return out
+
+
 def _price_sanity(source_price, result_price):
     if not source_price or not result_price:
         return 0
@@ -76,8 +89,11 @@ def score_result(source, result):
     brand_score = 15 if brand and brand in res_title.lower() else 0
     qty_score = 10 if _quantity_match(source.get("quantity"), res_title) else 0
     price_score = _price_sanity(source.get("price"), result.get("price"))
+    src_skus = _extract_skus(src_name)
+    res_skus = _extract_skus(res_title)
+    sku_score = 20 if src_skus and (src_skus & res_skus) else 0
 
-    total = fuzzy + tfidf + brand_score + qty_score + price_score
+    total = fuzzy + tfidf + brand_score + qty_score + price_score + sku_score
     return int(max(0, min(100, total)))
 
 
