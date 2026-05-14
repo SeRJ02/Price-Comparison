@@ -206,15 +206,21 @@ def search_hamaramall(query):
 
 
 def search_all_platforms(product, skip_platform):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     search_funcs = {"amazon": search_amazon, "flipkart": search_flipkart, "myntra": search_myntra, "hamaramall": search_hamaramall}
     query = product.get("search_query", "")
+    targets = {p: f for p, f in search_funcs.items() if p != skip_platform}
     results = {}
-    for platform, func in search_funcs.items():
-        if platform == skip_platform:
-            continue
-        results[platform] = func(query)
-        print(f"[search] {platform}: found {len(results[platform])} results")
-        for i, r in enumerate(results[platform][:5]):
-            print(f"[search]   {platform}[{i}] title={r.get('title','')!r} price={r.get('price',0)}")
-        time.sleep(REQUEST_DELAY)
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        future_to_platform = {ex.submit(func, query): platform for platform, func in targets.items()}
+        for fut in as_completed(future_to_platform):
+            platform = future_to_platform[fut]
+            try:
+                results[platform] = fut.result()
+            except Exception as e:
+                print(f"[search] {platform}: error {e}")
+                results[platform] = []
+            print(f"[search] {platform}: found {len(results[platform])} results")
+            for i, r in enumerate(results[platform][:5]):
+                print(f"[search]   {platform}[{i}] title={r.get('title','')!r} price={r.get('price',0)}")
     return results
