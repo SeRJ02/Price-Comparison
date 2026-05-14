@@ -152,6 +152,10 @@ def extract_from_flipkart(soup, url) -> dict:
         if h1:
             name = h1.get_text(strip=True)
     name = re.sub(r"\s*(\.{2,}\s*more|see\s+more|show\s+more)\s*$", "", name, flags=re.IGNORECASE).strip()
+    # Trim Flipkart SEO suffix like " - Price in India, Buy ... | Flipkart.com"
+    for sep in [" - Price in India", " | Flipkart", " - Buy "]:
+        if sep in name:
+            name = name.split(sep, 1)[0].strip()
     data["name"] = name
 
     # Price — find any element with font="default-fk-font-m" containing ₹, else first ₹ in body
