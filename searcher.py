@@ -9,6 +9,7 @@ from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 
 from config import HEADERS, TOP_N_RESULTS, REQUEST_DELAY
+from cache import get_cached, set_cached
 
 
 SCRAPER_PARAMS = {
@@ -47,6 +48,9 @@ def clean_int(text):
 
 def search_amazon(query):
     try:
+        cached = get_cached("amazon", query)
+        if cached is not None:
+            return cached
         html = fetch(f"https://www.amazon.in/s?k={quote_plus(query)}", "amazon")
         soup = BeautifulSoup(html, "html.parser")
         results = []
@@ -86,6 +90,7 @@ def search_amazon(query):
             results.append({"title": title, "price": price, "url": prod_url})
             if len(results) >= TOP_N_RESULTS:
                 break
+                set_cached("amazon", query, results)
         return results
     except Exception as e:
         print(f"[search_amazon] error: {e}")
@@ -134,6 +139,7 @@ def search_flipkart(query):
                 print(f"[flipkart-debug] rupee_at={idx} chunk={html[start:idx+3000]!r}")
             else:
                 print(f"[flipkart-debug] no_rupee html_len={len(html)} head={html[:2000]!r}")
+        set_cached("flipkart", query, results)
         return results
     except Exception as e:
         print(f"[search_flipkart] error: {e}")
@@ -142,6 +148,9 @@ def search_flipkart(query):
 
 def search_myntra(query):
     try:
+        cached = get_cached("myntra", query)
+        if cached is not None:
+            return cached
         slug = quote_plus(query).replace("+", "-")
         html = fetch(f"https://www.myntra.com/{slug}", "myntra")
         results = []
@@ -178,6 +187,7 @@ def search_myntra(query):
             href = link_el.get("href", "") if link_el else ""
             prod_url = href if href.startswith("http") else f"https://www.myntra.com{href}"
             results.append({"title": title, "price": price, "url": prod_url})
+        set_cached("myntra", query, results)
         return results
     except Exception as e:
         print(f"[search_myntra] error: {e}")
@@ -186,6 +196,9 @@ def search_myntra(query):
 
 def search_hamaramall(query):
     try:
+        cached = get_cached("hamaramall", query)
+        if cached is not None:
+            return cached
         html = fetch(f"https://www.hamaramall.com/search?q={quote_plus(query)}", "hamaramall")
         soup = BeautifulSoup(html, "html.parser")
         results = []
@@ -200,6 +213,7 @@ def search_hamaramall(query):
             href = link_el.get("href", "") if link_el else ""
             prod_url = href if href.startswith("http") else f"https://www.hamaramall.com{href}"
             results.append({"title": title, "price": price, "url": prod_url})
+        set_cached("hamaramall", query, results)
         return results
     except Exception as e:
         print(f"[search_hamaramall] error: {e}")
