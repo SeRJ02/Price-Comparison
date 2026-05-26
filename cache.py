@@ -64,9 +64,15 @@ def get_cached(platform, query):
 
 def set_cached(platform, query, results, ttl=_DEFAULT_TTL):
     if not results:
-        return  # don't cache empty results
+        print(f"[cache] SKIP write {platform} (empty results)")
+        return
     key = f"{platform}:{query.lower().strip()}"
-    _query(
+    print(f"[cache] WRITE {platform} key={key!r} count={len(results)}")
+    out = _query(
         "INSERT OR REPLACE INTO cache (key, data, expires_at) VALUES (?, ?, ?)",
         [key, json.dumps(results), int(time.time()) + ttl],
     )
+    if out is None:
+        print(f"[cache] WRITE FAILED {platform} key={key!r}")
+    else:
+        print(f"[cache] WRITE OK {platform} key={key!r}")
