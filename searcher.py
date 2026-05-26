@@ -100,6 +100,9 @@ def search_amazon(query):
 def search_flipkart(query):
     html = ""
     try:
+        cached = get_cached("flipkart", query)
+        if cached is not None:
+            return cached
         html = fetch(f"https://www.flipkart.com/search?q={quote_plus(query)}", "flipkart")
         soup = BeautifulSoup(html, "html.parser")
         results = []
