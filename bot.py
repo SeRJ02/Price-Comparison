@@ -106,8 +106,9 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    """Load commission map, build bot, start polling."""
+    """Load commission map, start health server, run polling loop with crash recovery."""
     global commission_map
+    import time as _time
 
     # Load .env file if present
     env_path = os.path.join(os.path.dirname(__file__) or ".", ".env")
@@ -132,17 +133,30 @@ def main():
         print(f"⚠️ Could not load commission sheet: {e}")
         print("   Bot will run without commission data.")
 
-    request = HTTPXRequest(connection_pool_size=20, read_timeout=120, write_timeout=120, connect_timeout=30)
-    app = Application.builder().token(token).request(request).build()
-
-    # Register handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_error_handler(error_handler)
-
+    # Start health server ONCE (survives polling restarts)
     threading.Thread(target=run_health_server, daemon=True).start()
-    print("🤖 Bot is running... Send it a product link on Telegram")
-    app.run_polling()
+
+    backoff = 10
+    while True:
+        try:
+            request = HTTPXRequest(connection_pool_size=20, read_timeout=120, write_timeout=120, connect_timeout=30)
+            app = Application.builder().token(token).request(request).build()
+            app.add_handler(CommandHandler("start", start_command))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+            app.add_error_handler(error_handler)
+            print("🤖 Bot is running... Send it a product link on Telegram")
+            app.run_polling()
+            break  # clean exit from run_polling means we're done
+        except KeyboardInterrupt:
+            print("Interrupted by user, exiting.")
+            break
+        except Exception as e:
+            print(f"[poll-recover] {type(e).__name__}: {e}")
+            traceback.print_exc()
+            print(f"[poll-recover] sleeping {backoff}s before restart")
+            _time.sleep(backoff)
+            backoff = min(backoff * 2, 120)  # exponential up to 2 min
+            continue
 
 
 if __name__ == "__main__":
